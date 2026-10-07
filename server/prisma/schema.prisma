@@ -1,0 +1,140 @@
+// Modelo completo según ARQUITECTURA.md — PostgreSQL + pgvector
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql", url = env("DATABASE_URL") }
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  totpSecret   String?
+  createdAt    DateTime @default(now())
+  notes        Note[]   folders Folder[]  projects Project[]
+  conversations Conversation[] imports Import[] aiRuns AiRun[]
+}
+
+model Folder {
+  id String @id @default(uuid())
+  name String
+  parentId String?
+  parent Folder? @relation("FolderTree", fields: [parentId], references: [id])
+  children Folder[] @relation("FolderTree")
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  notes Note[]
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  type      String   @default("note") // note | entity | document
+  kind      String?                    // tema | decision | tarea | tecnologia | proyecto
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  tags      NoteTag[]
+  linksOut  Link[]   @relation("LinkSource")
+  linksIn   Link[]   @relation("LinkTarget")
+  embedding Embedding?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, title])
+}
+
+model Tag {
+  id String @id @default(uuid())
+  name String
+  userId String
+  notes NoteTag[]
+  @@unique([userId, name])
+}
+model NoteTag {
+  noteId String
+  tagId  String
+  note   Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([noteId, tagId])
+}
+
+model Link {
+  id         String @id @default(uuid())
+  sourceId   String
+  targetId   String
+  relationship String @default("relates")
+  source     Note @relation("LinkSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target     Note @relation("LinkTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  @@unique([sourceId, targetId, relationship])
+}
+
+model Project {
+  id String @id @default(uuid())
+  name String
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  notes Note[]
+}
+
+model Conversation {
+  id String @id @default(uuid())
+  title String
+  source String            // chatgpt | gemini | whatsapp | facebook | generic
+  importId String?
+  import Import? @relation(fields: [importId], references: [id])
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  messages Message[]
+  createdAt DateTime @default(now())
+}
+model Message {
+  id String @id @default(uuid())
+  conversationId String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender String
+  role String
+  content String @db.Text
+  ts DateTime?
+  @@index([conversationId])
+}
+
+model Attachment {
+  id String @id @default(uuid())
+  key String          // ruta en Object Storage (R2/S3)
+  mime String
+  size Int
+  noteId String?
+  conversationId String?
+  createdAt DateTime @default(now())
+}
+
+model Embedding {
+  noteId String @id
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  vector Unsupported("vector(1536)")
+  model String
+  updatedAt DateTime @updatedAt
+}
+
+model AiRun {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  kind String            // ask | extract | embed
+  input String @db.Text
+  output String? @db.Text
+  contextRefs String[]   // qué fragmentos se enviaron (auditoría de contexto mínimo)
+  createdAt DateTime @default(now())
+}
+
+model Import {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  source String
+  status String @default("pending") // pending|processing|done|failed
+  stats Json?
+  conversations Conversation[]
+  createdAt DateTime @default(now())
+}

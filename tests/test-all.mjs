@@ -88,7 +88,8 @@ const m = g3.match(/export const NEON = (\{[\s\S]*?\n\});/);
 const neonSrc = m && m[1];
 t('graph3d: NEON presente', !!neonSrc);
 if (neonSrc) {
-  t('neon: 7 categorías', (neonSrc.match(/color:/g) || []).length === 7);
+  t('neon: 7 fuentes + 5 entidades', (neonSrc.match(/color:/g) || []).length === 12);
+  t('neon: entidades (plata/oro/cian)', neonSrc.includes('#d9d9e8') && neonSrc.includes('#ffd60a') && neonSrc.includes('#00ffd5'));
   t('neon: fucsia', neonSrc.includes('#ff2d95'));
   t('neon: verde fosforescente', neonSrc.includes('#39ff14'));
   t('neon: azul eléctrico', neonSrc.includes('#00e0ff'));
@@ -152,6 +153,35 @@ const ghTxt = 'Ñandú 🧠 acentos y "comillas" — línea nueva\nsegunda';
 t('github: base64 ida y vuelta con UTF-8', b64decode(b64encode(ghTxt)) === ghTxt);
 t('github: base64 vacío', b64decode(b64encode('')) === '');
 t('github: estado inicial desconectado', ghState.connected === false);
+
+// ── IA: chunking, búsqueda léxica, coseno, entidades en el grafo ──
+const { buildChunks, lexicalSearch, cosine, PRESETS } = await import('../js/ai.js');
+const chunks = buildChunks();
+t('ia: buildChunks genera fragmentos', chunks.length >= 10, chunks.length + ' chunks');
+t('ia: chunks cubren notas y conversaciones', chunks.some(c => c.refType === 'note') && chunks.some(c => c.refType === 'conversation'));
+t('ia: chunks con id único', new Set(chunks.map(c => c.id)).size === chunks.length);
+const lex = lexicalSearch('rutina de ejercicio principiante', chunks, 5);
+t('ia: búsqueda léxica encuentra algo', lex.length > 0);
+t('ia: resultado más relevante menciona entrenamiento/ejercicio', /entrenamiento|ejercicio|rutina/i.test(lex[0].chunk.refTitle + lex[0].chunk.text));
+t('ia: coseno idéntico = 1', Math.abs(cosine([1,2,3],[1,2,3]) - 1) < 1e-9);
+t('ia: coseno ortogonal = 0', Math.abs(cosine([1,0],[0,1])) < 1e-9);
+t('ia: presets definidos', PRESETS.OpenAI && PRESETS.Groq && PRESETS.OpenRouter);
+
+// entidades Nivel 2 en el grafo
+const convRef = store.conversations()[0];
+const ent = store.create({ type:'entity', kind:'tema', title:'Webhooks de prueba', content:'tema detectado', source:'ai', meta:{ from: convRef.id, kind:'tema' } });
+const gEnt = computeGraph({ mentionLinks: true });
+const entNode = gEnt.nodes.find(n => n.id === ent.id);
+t('grafo: nodo de entidad presente', !!entNode && entNode.kind === 'entity');
+t('grafo: entidad con color por tipo', entNode.source === 'entity-tema');
+t('grafo: arista entidad→conversación original', gEnt.edges.some(e => e.type === 'entity' && e.a === ent.id && e.b === convRef.id));
+
+// ── UI IA en HTML ──
+t('html: vista IA completa', ['view-ai','panel-ai','ai-question','ai-send','ai-presets','ai-embed','ai-extract','ai-job-log'].every(id => htmlFile.includes(id)));
+t('html: rail con botón IA', htmlFile.includes('data-view="ai"'));
+t('css: estilos IA', css.includes('.ai-chat') && css.includes('.ai-cite'));
+t('docs: ARQUITECTURA.md existe', (()=>{try{readFileSync(new URL('../docs/ARQUITECTURA.md', import.meta.url));return true}catch{return false}})());
+t('server: esqueleto fase 2', (()=>{try{const sch=readFileSync(new URL('../server/prisma/schema.prisma', import.meta.url),'utf8');return sch.includes('pgvector')||sch.includes('vector(1536)')}catch{return false}})());
 
 console.log(`\n✅ ${pass} pasaron, ❌ ${fail} fallaron`);
 process.exit(fail ? 1 : 0);

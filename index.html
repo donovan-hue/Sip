@@ -40,6 +40,9 @@
       <button class="rail-btn" data-view="sync" title="Conexión automática (Alt+5)">
         <span class="rail-icon">🔌</span><span class="rail-label">Conexiones</span>
       </button>
+      <button class="rail-btn" data-view="ai" title="IA sobre tu conocimiento (Alt+6)">
+        <span class="rail-icon">🤖</span><span class="rail-label">IA</span>
+      </button>
     </div>
     <div class="rail-footer">
       <button class="rail-btn small" id="btn-help" title="Ayuda y atajos (F1)">
@@ -109,6 +112,12 @@
       <div class="panel-head"><h2>🔌 Conexiones</h2></div>
       <p class="panel-hint">Conecta <b>una sola vez</b> una carpeta de tu equipo. Todo lo que tus apps guarden ahí (exports de ChatGPT, chats de WhatsApp, cualquier JSON/TXT) se importa <b>automáticamente cada 30 s</b>.</p>
       <div class="panel-section" id="sync-mini-status"></div>
+    </div>
+    <!-- IA -->
+    <div class="panel-view" id="panel-ai">
+      <div class="panel-head"><h2>🤖 IA</h2></div>
+      <p class="panel-hint">Chat con <b>tu propio conocimiento</b>. La IA busca en tus notas y conversaciones y responde <b>citando las fuentes</b>. Nunca se envía toda tu base: solo el contexto relevante de tu pregunta.</p>
+      <div class="panel-section" id="ai-mini-status"></div>
     </div>
   </aside>
 
@@ -353,6 +362,53 @@
       </div>
     </section>
 
+    <!-- Vista: IA -->
+    <section class="view" id="view-ai">
+      <div class="ai-wrap">
+        <div class="ai-grid">
+          <div class="ai-card chat">
+            <div class="sync-head-row"><span class="sync-status-dot" id="ai-dot"></span><h3>💬 Chat con tu conocimiento</h3></div>
+            <div id="ai-chat" class="ai-chat"><div class="sync-log-empty">Pregunta algo sobre tus notas y conversaciones… ej: <i>¿Qué decisiones tomé sobre webhooks?</i></div></div>
+            <div class="ai-input-row">
+              <input type="text" id="ai-question" placeholder="Pregunta a tu base de conocimiento…">
+              <button class="btn primary small-btn" id="ai-send">Preguntar</button>
+            </div>
+          </div>
+          <div class="ai-card">
+            <h3>🔑 Proveedor de IA</h3>
+            <p class="ai-hint">Tu clave se guarda <b>solo en este navegador</b> y se usa únicamente contra la API que elijas.</p>
+            <div class="chips" id="ai-presets"></div>
+            <input type="text" id="ai-baseurl" placeholder="Base URL (ej. https://api.openai.com/v1)">
+            <input type="password" id="ai-key" placeholder="Clave API (sk-…)" autocomplete="off">
+            <input type="text" id="ai-model" placeholder="Modelo de chat (ej. gpt-4o-mini)">
+            <input type="text" id="ai-embmodel" placeholder="Modelo de embeddings (opcional, ej. text-embedding-3-small)">
+            <div class="sync-actions">
+              <button class="btn primary small-btn" id="ai-save">Guardar</button>
+              <button class="btn ghost small-btn" id="ai-test">Probar conexión</button>
+            </div>
+          </div>
+          <div class="ai-card">
+            <h3>🧮 Índice semántico</h3>
+            <p class="ai-hint">Genera embeddings de tus notas y conversaciones para búsqueda semántica real (requiere modelo de embeddings).</p>
+            <div class="sync-stats" id="ai-index-stats"></div>
+            <div class="hud-meter" style="margin-bottom:10px"><div id="ai-emb-bar"></div></div>
+            <div class="sync-actions">
+              <button class="btn primary small-btn" id="ai-embed">Generar embeddings</button>
+              <button class="btn ghost small-btn" id="ai-emb-clear">Borrar índice</button>
+            </div>
+          </div>
+          <div class="ai-card">
+            <h3>⛏ Extracción automática (Nivel 2)</h3>
+            <p class="ai-hint">Procesa tus conversaciones con IA y crea nodos estructurados: <b>temas, decisiones, tareas, tecnologías, proyectos</b>. El original siempre se conserva (Nivel 1).</p>
+            <div class="sync-actions">
+              <button class="btn primary small-btn" id="ai-extract">Procesar conversaciones con IA</button>
+            </div>
+            <div id="ai-job-log" class="sync-log" style="margin-top:10px"><div class="sync-log-empty">Sin procesos todavía…</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Barra de estado -->
     <footer id="statusbar">
       <span id="sb-counts"></span>
@@ -394,6 +450,7 @@
           <li><b>🧠 Red 3D</b> — el mapa neuronal de todo. Rota con el ratón, zoom con la rueda. Las chispas ⚡ que viajan por las líneas son información moviéndose entre nodos: al hacer clic en uno, la señal estalla hacia sus conexiones.</li>
           <li><b>📥 Importar</b> — sube exports de ChatGPT, Gemini, WhatsApp o Messenger.</li>
           <li><b>🔌 Conexiones</b> — conecta una carpeta <b>una sola vez</b>: todo chat que tus apps guarden ahí se importa automáticamente cada 30 segundos.</li>
+          <li><b>🤖 IA</b> — chat RAG sobre tu base: busca el contexto relevante en tus notas/chats y responde citando fuentes. Además extrae temas, decisiones y tareas de tus conversaciones hacia el grafo.</li>
         </ul>
       </div>
       <div>

@@ -116,8 +116,10 @@ export function computeGraph({ mentionLinks = true } = {}) {
   function addNode(n) {
     if (nodeById.has(n.id)) return nodeById.get(n.id);
     const node = {
-      id: n.id, title: n.title, kind: n.type === 'conversation' ? 'conversation' : 'note',
-      source: n.source || 'manual', degree: 0,
+      id: n.id, title: n.title,
+      kind: n.type === 'conversation' ? 'conversation' : n.type === 'entity' ? 'entity' : 'note',
+      source: n.type === 'entity' ? 'entity-' + (n.meta?.kind || 'tema') : (n.source || 'manual'),
+      degree: 0,
     };
     nodes.push(node); nodeById.set(n.id, node);
     return node;
@@ -135,6 +137,13 @@ export function computeGraph({ mentionLinks = true } = {}) {
 
   // 1 · Nodos de notas y conversaciones
   for (const n of notes) addNode(n);
+
+  // 1b · Entidades (Nivel 2) → su conversación original (Nivel 1)
+  for (const n of notes) {
+    if (n.type === 'entity' && n.meta?.from && nodeById.has(n.meta.from)) {
+      addEdge(n.id, n.meta.from, 'entity');
+    }
+  }
 
   // 2 · Enlaces [[wiki]] explícitos
   for (const n of notes) {

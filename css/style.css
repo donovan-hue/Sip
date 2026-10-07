@@ -621,6 +621,40 @@ kbd{
 .gh-form input:focus{border-color:rgba(57,255,20,.45)}
 .sync-log-empty{color:var(--text-faint);font-size:.75rem;padding:8px 2px}
 
+/* ── IA: chat RAG + índice + extracción ─────────────── */
+.ai-wrap{flex:1;overflow-y:auto;padding:28px 34px 60px}
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;max-width:1150px;margin:0 auto}
+.ai-card{background:var(--panel);border:1px solid var(--glass-border);border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:10px}
+.ai-card.chat{grid-row:span 2;min-height:420px}
+.ai-card h3{font-size:.98rem}
+.ai-hint{font-size:.76rem;color:var(--text-dim);line-height:1.5}
+.ai-card input[type="text"],.ai-card input[type="password"]{
+  width:100%;padding:9px 12px;border-radius:10px;font-size:.8rem;
+  border:1px solid var(--glass-border);background:rgba(0,0,0,.3);color:var(--text);outline:none;
+}
+.ai-card input:focus{border-color:rgba(0,224,255,.45)}
+.ai-chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:6px 2px;min-height:220px}
+.ai-msg{padding:11px 15px;border-radius:14px;font-size:.86rem;line-height:1.6;max-width:94%}
+.ai-msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(0,224,255,.25),rgba(124,108,255,.3));border:1px solid rgba(0,224,255,.3)}
+.ai-msg.bot{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--glass-border)}
+.ai-msg.bot .markdown-body{font-size:.86rem}
+.ai-msg .ai-cites{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+.ai-cite{
+  font-size:.66rem;padding:3px 9px;border-radius:99px;cursor:pointer;font-weight:700;
+  background:rgba(0,224,255,.12);border:1px solid rgba(0,224,255,.35);color:#9fe8ff;
+}
+.ai-cite:hover{background:rgba(0,224,255,.3)}
+.ai-msg .ai-mode{font-size:.62rem;color:var(--text-faint);margin-bottom:4px}
+.ai-input-row{display:flex;gap:8px}
+.ai-input-row input{
+  flex:1;padding:11px 14px;border-radius:11px;border:1px solid var(--glass-border);
+  background:rgba(0,0,0,.3);color:var(--text);font-size:.86rem;outline:none;
+}
+.ai-typing{display:inline-flex;gap:4px;padding:4px 0}
+.ai-typing i{width:6px;height:6px;border-radius:50%;background:#9fe8ff;animation:blink 1s infinite}
+.ai-typing i:nth-child(2){animation-delay:.15s}
+.ai-typing i:nth-child(3){animation-delay:.3s}
+
 .hidden-file{display:none}
 
 /* ── Responsive ─────────────── */

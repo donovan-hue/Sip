@@ -6,6 +6,7 @@ import { seedSamples } from './samples.js';
 import { Graph3D, NEON } from './graph3d.js';
 import { syncState, connectFolder, scanNow, tryRestore, reconnect, disconnect, isSupported } from './sync.js';
 import { ghState, connectGitHub, pushGitHub, pullGitHub, disconnectGitHub, loadGhConfig, setGhAuto } from './github.js';
+import { aiCfg, loadAiCfg, saveAiCfg, PRESETS, buildChunks, embedAll, embeddingsReady, clearEmbeddings, ask, testConnection, extractFromConversation, applyExtraction } from './ai.js';
 
 /* ── Helpers ─────────────────────────────────────────── */
 const $ = s => document.querySelector(s);
@@ -42,7 +43,7 @@ const state = {
   editorMode: 'split',
   graph: null,
   graphData: null,
-  filters: new Set(['manual', 'chatgpt', 'gemini', 'whatsapp', 'facebook', 'generic', 'person']),
+  filters: new Set(['manual', 'chatgpt', 'gemini', 'whatsapp', 'facebook', 'generic', 'person', 'entity-tema', 'entity-decision', 'entity-tarea', 'entity-tecnologia', 'entity-proyecto']),
   showMentions: true,
   pendingImport: null,
 };
@@ -53,8 +54,9 @@ function setView(name) {
   $$('.rail-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   $$('.panel-view').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
-  const labels = { notes: '📝 Notas', chats: '💬 Conversaciones', graph: '🧠 Red neuronal 3D', import: '📥 Importar conversaciones', sync: '🔌 Conexiones automáticas' };
+  const labels = { notes: '📝 Notas', chats: '💬 Conversaciones', graph: '🧠 Red neuronal 3D', import: '📥 Importar conversaciones', sync: '🔌 Conexiones automáticas', ai: '🤖 IA sobre tu conocimiento' };
   if (name === 'sync') { renderSyncStatus(); renderGhStatus(); }
+  if (name === 'ai') renderAiStatus();
   let crumb = labels[name] || '';
   if (name === 'notes' && state.noteId) {
     const n = store.get(state.noteId);
@@ -416,6 +418,138 @@ function renderGhStatus() {
   }
 }
 
+/* ── IA: chat RAG, índice semántico, extracción ──────── */
+const aiLog = [];
+function aiLogLine(text) {
+  aiLog.unshift({ ts: Date.now(), text });
+  if (aiLog.length > 10) aiLog.pop();
+  const el = $('#ai-job-log');
+  if (el) el.innerHTML = aiLog.map(l => `<div class="sl-line"><span class="fx-t">${fmtClock(l.ts)}</span> ${escapeHtml(l.text)}</div>`).join('');
+}
+
+function aiMsg(role, html, extra = '') {
+  const box = $('#ai-chat');
+  const empty = box.querySelector('.sync-log-empty');
+  if (empty) empty.remove();
+  const el = document.createElement('div');
+  el.className = 'ai-msg ' + role;
+  el.innerHTML = extra + html;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+async function renderAiStatus() {
+  const ready = await embeddingsReady();
+  const chunks = buildChunks().length;
+  $('#ai-dot').className = 'sync-status-dot' + (aiCfg.apiKey ? ' on' : '');
+  $('#ai-baseurl').value = aiCfg.baseUrl;
+  $('#ai-key').placeholder = aiCfg.apiKey ? '•••••••• (guardada)' : 'Clave API (sk-…)';
+  $('#ai-model').value = aiCfg.chatModel;
+  $('#ai-embmodel').value = aiCfg.embModel;
+  $('#ai-index-stats').textContent = `${chunks} fragmentos indexables · embeddings: ${ready ? ready.count + ' (' + ready.model + ')' : 'sin generar'}`;
+  const presets = $('#ai-presets');
+  if (presets && !presets.childElementCount) {
+    presets.innerHTML = Object.keys(PRESETS).map(p => `<button class="chip" data-preset="${p}">${p}</button>`).join('');
+    presets.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
+      const pr = PRESETS[ch.dataset.preset];
+      saveAiCfg({ baseUrl: pr.baseUrl, chatModel: pr.chat, embModel: pr.emb || aiCfg.embModel });
+      renderAiStatus();
+    });
+  }
+  const mini = $('#ai-mini-status');
+  if (mini) mini.innerHTML = aiCfg.apiKey
+    ? `<div class="legend-row"><span class="sync-status-dot on" style="width:9px;height:9px"></span>IA configurada${ready ? ' · índice listo' : ''}</div>`
+    : `<div class="legend-row" style="color:var(--text-faint)">Configura tu clave API para empezar</div>`;
+}
+
+function initAiEvents() {
+  $('#ai-save').onclick = () => {
+    const patch = {
+      baseUrl: $('#ai-baseurl').value.trim() || aiCfg.baseUrl,
+      chatModel: $('#ai-model').value.trim() || aiCfg.chatModel,
+      embModel: $('#ai-embmodel').value.trim(),
+    };
+    const k = $('#ai-key').value.trim();
+    if (k) { patch.apiKey = k; $('#ai-key').value = ''; }
+    saveAiCfg(patch);
+    renderAiStatus();
+    toast('Configuración de IA guardada (solo en tu navegador)', '🔑');
+  };
+  $('#ai-test').onclick = async () => {
+    try { await testConnection(); toast('Conexión con la IA: OK', '✅'); }
+    catch (err) { toast(err.message, '⚠️'); }
+  };
+  $('#ai-embed').onclick = async () => {
+    const btn = $('#ai-embed'); btn.disabled = true;
+    try {
+      const chunks = buildChunks();
+      await embedAll(chunks, pct => { $('#ai-emb-bar').style.width = pct + '%'; });
+      aiLogLine(`🧮 Índice semántico generado: ${chunks.length} fragmentos`);
+      toast('Índice semántico listo', '🧮');
+    } catch (err) { toast(err.message, '⚠️'); }
+    btn.disabled = false;
+    renderAiStatus();
+  };
+  $('#ai-emb-clear').onclick = async () => {
+    await clearEmbeddings();
+    $('#ai-emb-bar').style.width = '0%';
+    renderAiStatus();
+    toast('Índice borrado', '🗑');
+  };
+  $('#ai-send').onclick = sendAiQuestion;
+  $('#ai-question').onkeydown = e => { if (e.key === 'Enter') sendAiQuestion(); };
+  $('#ai-extract').onclick = runExtraction;
+}
+
+async function sendAiQuestion() {
+  const q = $('#ai-question').value.trim();
+  if (!q) return;
+  $('#ai-question').value = '';
+  aiMsg('user', escapeHtml(q));
+  const typing = aiMsg('bot', '<span class="ai-typing"><i></i><i></i><i></i></span>');
+  try {
+    const { answer, citations } = await ask(q);
+    const citesHtml = citations.map((c, i) =>
+      `<span class="ai-cite" data-id="${c.chunk.refId}">[${i + 1}] ${escapeHtml(c.chunk.refTitle.slice(0, 28))}</span>`).join('');
+    typing.innerHTML = `<div class="ai-mode">contexto: ${citations.length} fragmentos · ${citations[0]?.mode || 'texto'}</div>` +
+      renderMarkdown(answer) +
+      (citesHtml ? `<div class="ai-cites">${citesHtml}</div>` : '');
+    typing.querySelectorAll('.ai-cite').forEach(ch => ch.onclick = () => {
+      const n = store.get(ch.dataset.id);
+      if (n) (n.type === 'conversation' ? openConversation(n.id) : openNote(n.id));
+    });
+  } catch (err) {
+    typing.innerHTML = `⚠️ ${escapeHtml(err.message)}`;
+  }
+  $('#ai-chat').scrollTop = $('#ai-chat').scrollHeight;
+}
+
+async function runExtraction() {
+  if (!aiCfg.apiKey) { toast('Configura primero tu clave API', '⚠️'); return; }
+  const pending = store.conversations().filter(c => !c.meta?.extracted);
+  if (!pending.length) { toast('Todas las conversaciones ya están procesadas', '✅'); return; }
+  const btn = $('#ai-extract'); btn.disabled = true;
+  let total = 0, done = 0;
+  for (const conv of pending) {
+    aiLogLine(`⛏ ${conv.title}: leyendo mensajes…`);
+    try {
+      const ex = await extractFromConversation(conv);
+      aiLogLine(`⛏ ${conv.title}: creando entidades…`);
+      const created = applyExtraction(conv, ex);
+      total += created; done++;
+      aiLogLine(`✅ ${conv.title}: +${created} entidades (temas/decisiones/tareas/tecnologías)`);
+    } catch (err) {
+      aiLogLine(`⚠️ ${conv.title}: ${err.message}`);
+    }
+    await new Promise(r => setTimeout(r, 600));
+  }
+  btn.disabled = false;
+  renderAll();
+  if (state.view === 'graph') refreshGraph();
+  toast(`Extracción completa: ${total} entidades nuevas de ${done} conversaciones`, '🧠');
+}
+
 /* ── HUD estilo IA de trading ────────────────────────── */
 const hudState = { signals: [], lastFeed: 0 };
 
@@ -568,6 +702,7 @@ const ACTIONS = [
   { icon: '📥', title: 'Importar conversaciones', sub: 'acción', run: () => setView('import') },
   { icon: '🔌', title: 'Conexiones automáticas (carpeta buzón)', sub: 'acción', run: () => setView('sync') },
   { icon: '🐙', title: 'Respaldar bóveda en GitHub', sub: 'acción', run: () => setView('sync') },
+  { icon: '🤖', title: 'Chat IA con mi conocimiento', sub: 'acción', run: () => setView('ai') },
   { icon: '💬', title: 'Ver conversaciones', sub: 'acción', run: () => setView('chats') },
   { icon: '✨', title: 'Cargar contenido demo', sub: 'acción', run: () => { seedSamples(); renderAll(); toast('Ejemplos cargados'); } },
   { icon: '❓', title: 'Ayuda y atajos', sub: 'acción', run: () => $('#help-modal').classList.remove('hidden') },
@@ -946,7 +1081,7 @@ function initEvents() {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') { e.preventDefault(); openPalette(); return; }
     if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); newNote(); return; }
-    if (e.altKey && ['1', '2', '3', '4', '5'].includes(e.key)) { e.preventDefault(); setView(['notes', 'chats', 'graph', 'import', 'sync'][+e.key - 1]); return; }
+    if (e.altKey && ['1', '2', '3', '4', '5', '6'].includes(e.key)) { e.preventDefault(); setView(['notes', 'chats', 'graph', 'import', 'sync', 'ai'][+e.key - 1]); return; }
     if (e.key === 'F1') { e.preventDefault(); $('#help-modal').classList.toggle('hidden'); return; }
     if (e.key === 'Escape') {
       if (!$('#palette').classList.contains('hidden')) closePalette();
@@ -986,6 +1121,9 @@ function init() {
   renderSyncStatus();
   loadGhConfig();
   renderGhStatus();
+  loadAiCfg();
+  initAiEvents();
+  renderAiStatus();
   if (!store.data.settings.onboardingDone) {
     $('#onboarding').classList.remove('hidden');
   } else if (store.plainNotes().length) {

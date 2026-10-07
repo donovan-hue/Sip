@@ -15,6 +15,12 @@ export const NEON = {
   facebook: { color: '#2f7bff', label: 'Messenger' },    // azul fuerte
   generic:  { color: '#ff5ce0', label: 'Otras IA' },     // rosa fiusha
   person:   { color: '#ff1f1f', label: 'Personas' },     // rojo fuerte concentrado
+  // entidades Nivel 2 (extraídas por IA) — negro + plata + líneas luminosas
+  'entity-tema':       { color: '#ffd60a', label: 'Temas' },
+  'entity-decision':   { color: '#ff6b35', label: 'Decisiones' },
+  'entity-tarea':      { color: '#00ffd5', label: 'Tareas' },
+  'entity-tecnologia': { color: '#d9d9e8', label: 'Tecnologías (plata)' },
+  'entity-proyecto':   { color: '#b967ff', label: 'Proyectos' },
 };
 export const CYCLE_SECONDS = 14; // el color da una vuelta completa cada 14 s, en bucle infinito
 
