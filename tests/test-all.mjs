@@ -142,5 +142,16 @@ t('html: rail botón Conexiones', htmlFile.includes('data-view="sync"'));
 t('css: estilos de conexiones', css.includes('.sync-card') && css.includes('.sync-status-dot') && css.includes('.sync-log'));
 t('app: wiring de sync', app.includes('connectFolder') && app.includes('tryRestore') && app.includes('renderSyncStatus') && app.includes("setView('sync')"));
 
+// ── GitHub: helpers puros ──
+const { parseRepo, b64encode, b64decode, ghState } = await import('../js/github.js');
+t('github: parseRepo usuario/repo', JSON.stringify(parseRepo('donovan-hue/Sip')) === '{"owner":"donovan-hue","repo":"Sip"}');
+t('github: parseRepo URL completa', JSON.stringify(parseRepo('https://github.com/donovan-hue/Sip')) === '{"owner":"donovan-hue","repo":"Sip"}');
+t('github: parseRepo URL con .git', JSON.stringify(parseRepo('https://github.com/donovan-hue/Sip.git')) === '{"owner":"donovan-hue","repo":"Sip"}');
+t('github: parseRepo inválido → null', parseRepo('basura sin formato') === null);
+const ghTxt = 'Ñandú 🧠 acentos y "comillas" — línea nueva\nsegunda';
+t('github: base64 ida y vuelta con UTF-8', b64decode(b64encode(ghTxt)) === ghTxt);
+t('github: base64 vacío', b64decode(b64encode('')) === '');
+t('github: estado inicial desconectado', ghState.connected === false);
+
 console.log(`\n✅ ${pass} pasaron, ❌ ${fail} fallaron`);
 process.exit(fail ? 1 : 0);

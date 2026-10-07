@@ -5,6 +5,7 @@ import { parseAuto, parseGenericText, FORMAT_LABEL } from './importers.js';
 import { seedSamples } from './samples.js';
 import { Graph3D, NEON } from './graph3d.js';
 import { syncState, connectFolder, scanNow, tryRestore, reconnect, disconnect, isSupported } from './sync.js';
+import { ghState, connectGitHub, pushGitHub, pullGitHub, disconnectGitHub, loadGhConfig, setGhAuto } from './github.js';
 
 /* ── Helpers ─────────────────────────────────────────── */
 const $ = s => document.querySelector(s);
@@ -53,7 +54,7 @@ function setView(name) {
   $$('.panel-view').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   const labels = { notes: '📝 Notas', chats: '💬 Conversaciones', graph: '🧠 Red neuronal 3D', import: '📥 Importar conversaciones', sync: '🔌 Conexiones automáticas' };
-  if (name === 'sync') renderSyncStatus();
+  if (name === 'sync') { renderSyncStatus(); renderGhStatus(); }
   let crumb = labels[name] || '';
   if (name === 'notes' && state.noteId) {
     const n = store.get(state.noteId);
@@ -392,6 +393,29 @@ function renderSyncStatus() {
   }
 }
 
+/* ── Respaldo en GitHub ──────────────────────────────── */
+function renderGhStatus() {
+  const g = ghState;
+  $('#gh-dot').className = 'sync-status-dot' + (g.connected ? ' on' : '');
+  $('#gh-title').textContent = g.connected ? `🐙 Conectado: ${g.owner}/${g.repo}` : '🐙 GitHub — respaldo en la nube';
+  $('#gh-form').classList.toggle('hidden', g.connected);
+  $('#gh-disconnect').classList.toggle('hidden', !g.connected);
+  $('#gh-push').disabled = !g.connected;
+  $('#gh-pull').disabled = !g.connected;
+  $('#gh-push').style.opacity = g.connected ? '1' : '.45';
+  $('#gh-pull').style.opacity = g.connected ? '1' : '.45';
+  $('#gh-auto').checked = g.auto;
+  $('#gh-stats').textContent = g.connected
+    ? `Última sync: ${g.lastSync ? fmtClock(g.lastSync) : '—'}${g.lastError ? ' · ⚠️ ' + g.lastError : ''}`
+    : '';
+  const logEl = $('#gh-log');
+  if (logEl) {
+    logEl.innerHTML = g.log.length
+      ? g.log.map(l => `<div class="sl-line"><span class="fx-t">${fmtClock(l.ts)}</span> ${escapeHtml(l.text)}</div>`).join('')
+      : '<div class="sync-log-empty">Sin actividad todavía…</div>';
+  }
+}
+
 /* ── HUD estilo IA de trading ────────────────────────── */
 const hudState = { signals: [], lastFeed: 0 };
 
@@ -543,6 +567,7 @@ const ACTIONS = [
   { icon: '🧠', title: 'Abrir red neuronal 3D', sub: 'acción', run: () => setView('graph') },
   { icon: '📥', title: 'Importar conversaciones', sub: 'acción', run: () => setView('import') },
   { icon: '🔌', title: 'Conexiones automáticas (carpeta buzón)', sub: 'acción', run: () => setView('sync') },
+  { icon: '🐙', title: 'Respaldar bóveda en GitHub', sub: 'acción', run: () => setView('sync') },
   { icon: '💬', title: 'Ver conversaciones', sub: 'acción', run: () => setView('chats') },
   { icon: '✨', title: 'Cargar contenido demo', sub: 'acción', run: () => { seedSamples(); renderAll(); toast('Ejemplos cargados'); } },
   { icon: '❓', title: 'Ayuda y atajos', sub: 'acción', run: () => $('#help-modal').classList.remove('hidden') },
@@ -811,6 +836,47 @@ function initEvents() {
     }
   };
 
+  // Respaldo en GitHub
+  $('#gh-connect').onclick = async () => {
+    const btn = $('#gh-connect');
+    btn.disabled = true; btn.textContent = 'Conectando…';
+    try {
+      const name = await connectGitHub($('#gh-token').value, $('#gh-repo').value, $('#gh-branch').value);
+      $('#gh-token').value = '';
+      renderGhStatus();
+      toast(`GitHub conectado: ${name} — respaldo automático activo`, '🐙');
+    } catch (err) {
+      toast(err.message || 'No se pudo conectar', '⚠️');
+    }
+    btn.disabled = false; btn.textContent = 'Conectar';
+  };
+  $('#gh-push').onclick = async () => {
+    const okPush = await pushGitHub();
+    renderGhStatus();
+    toast(okPush ? '⬆ Bóveda subida a GitHub' : 'Sin cambios que subir', '🐙');
+  };
+  $('#gh-pull').onclick = async () => {
+    const added = await pullGitHub();
+    renderGhStatus();
+    renderAll();
+    if (state.view === 'graph') refreshGraph();
+    toast(added > 0 ? `⬇ ${added} elementos nuevos descargados` : 'Todo al día', '🐙');
+  };
+  $('#gh-auto').onchange = e => { setGhAuto(e.target.checked); renderGhStatus(); };
+  $('#gh-disconnect').onclick = () => {
+    if (!confirm('¿Desconectar GitHub? Tu token se borrará de este navegador (tus datos locales se quedan).')) return;
+    disconnectGitHub();
+    renderGhStatus();
+    toast('GitHub desconectado', '✂️');
+  };
+  ghState.onChange = ({ event, added }) => {
+    renderGhStatus();
+    if (event === 'pulled' && added > 0) {
+      renderAll();
+      if (state.view === 'graph') refreshGraph();
+    }
+  };
+
   // Paleta
   $('#btn-palette').onclick = () => openPalette();
   $('#palette-input').oninput = updatePalette;
@@ -918,6 +984,8 @@ function init() {
     tryRestore().then(r => renderSyncStatus());
   }
   renderSyncStatus();
+  loadGhConfig();
+  renderGhStatus();
   if (!store.data.settings.onboardingDone) {
     $('#onboarding').classList.remove('hidden');
   } else if (store.plainNotes().length) {

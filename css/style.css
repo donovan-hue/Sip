@@ -613,6 +613,12 @@ kbd{
 .sync-log{display:flex;flex-direction:column;gap:5px;font-family:ui-monospace,Consolas,monospace;font-size:.7rem;min-height:120px}
 .sync-log .sl-line{padding:6px 9px;border-radius:8px;background:rgba(0,0,0,.35);border:1px solid rgba(57,255,20,.18);color:#9fe8c8;animation:feedIn .25s ease}
 .sync-log .sl-line .fx-t{color:#5a6a8a}
+.gh-form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.gh-form input{
+  flex:1;min-width:170px;padding:9px 12px;border-radius:10px;font-size:.8rem;
+  border:1px solid var(--glass-border);background:rgba(0,0,0,.3);color:var(--text);outline:none;
+}
+.gh-form input:focus{border-color:rgba(57,255,20,.45)}
 .sync-log-empty{color:var(--text-faint);font-size:.75rem;padding:8px 2px}
 
 .hidden-file{display:none}

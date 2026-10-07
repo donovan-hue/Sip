@@ -312,6 +312,29 @@
             </div>
             <div class="sync-note hidden" id="sync-unsupported">⚠️ Tu navegador no permite conectar carpetas (se necesita Chrome, Edge u Opera). Puedes seguir importando manualmente en 📥 Importar.</div>
           </div>
+          <div class="sync-card main">
+            <div class="sync-head-row">
+              <span class="sync-status-dot" id="gh-dot"></span>
+              <h3 id="gh-title">🐙 GitHub — respaldo en la nube</h3>
+            </div>
+            <p>Conecta <b>una sola vez</b> un repositorio y tu bóveda entera (notas + conversaciones) se respalda <b>sola cada 60 segundos</b> si hubo cambios. Así puedes abrirla en otro equipo y recuperar todo.</p>
+            <div class="gh-form" id="gh-form">
+              <input type="password" id="gh-token" placeholder="Token (fine-grained, permiso Contents: Read &amp; Write)" autocomplete="off">
+              <input type="text" id="gh-repo" placeholder="usuario/repositorio  o  URL del repo" autocomplete="off">
+              <input type="text" id="gh-branch" placeholder="rama (opcional)" autocomplete="off">
+              <button class="btn primary small-btn" id="gh-connect">Conectar</button>
+            </div>
+            <div class="sync-stats" id="gh-stats"></div>
+            <div class="sync-actions">
+              <button class="btn ghost small-btn" id="gh-push">⬆ Subir ahora</button>
+              <button class="btn ghost small-btn" id="gh-pull">⬇ Descargar</button>
+              <label class="switch-row" style="margin:0"><input type="checkbox" id="gh-auto" checked><span>Auto cada 60 s</span></label>
+              <button class="btn danger small-btn hidden" id="gh-disconnect">Desconectar</button>
+            </div>
+            <div class="sync-note">🔐 Tu token se guarda <b>solo en este navegador</b> y únicamente se envía a <code>api.github.com</code>. Recomendamos un <b>fine-grained token</b> limitado a ese repositorio (Contents: Read &amp; Write) y con expiración corta. Puedes borrarlo con “Desconectar”.</div>
+            <h3 style="margin-top:14px;font-size:.85rem">Actividad GitHub</h3>
+            <div id="gh-log" class="sync-log"><div class="sync-log-empty">Sin actividad todavía…</div></div>
+          </div>
           <div class="sync-card">
             <h3>🧩 ¿Cómo conecto cada app?</h3>
             <ul class="sync-how">
