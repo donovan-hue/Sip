@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinapsis · Tu segundo cerebro en 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════ RAIL DE NAVEGACIÓN ══════════ -->
+  <nav id="rail" aria-label="Navegación principal">
+    <div class="brand" title="Sinapsis">
+      <div class="brand-orb"></div>
+      <span>Sinapsis</span>
+    </div>
+    <div class="rail-buttons">
+      <button class="rail-btn active" data-view="notes" title="Notas (Alt+1)">
+        <span class="rail-icon">📝</span><span class="rail-label">Notas</span>
+      </button>
+      <button class="rail-btn" data-view="chats" title="Conversaciones (Alt+2)">
+        <span class="rail-icon">💬</span><span class="rail-label">Chats</span>
+      </button>
+      <button class="rail-btn" data-view="graph" title="Red neuronal 3D (Alt+3)">
+        <span class="rail-icon">🧠</span><span class="rail-label">Red 3D</span>
+      </button>
+      <button class="rail-btn" data-view="import" title="Importar conversaciones (Alt+4)">
+        <span class="rail-icon">📥</span><span class="rail-label">Importar</span>
+      </button>
+      <button class="rail-btn" data-view="sync" title="Conexión automática (Alt+5)">
+        <span class="rail-icon">🔌</span><span class="rail-label">Conexiones</span>
+      </button>
+    </div>
+    <div class="rail-footer">
+      <button class="rail-btn small" id="btn-help" title="Ayuda y atajos (F1)">
+        <span class="rail-icon">❓</span><span class="rail-label">Ayuda</span>
+      </button>
+      <button class="rail-btn small" id="btn-settings" title="Configuración">
+        <span class="rail-icon">⚙️</span><span class="rail-label">Ajustes</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ══════════ PANEL LATERAL CONTEXTUAL ══════════ -->
+  <aside id="panel">
+    <!-- Notas -->
+    <div class="panel-view active" id="panel-notes">
+      <div class="panel-head">
+        <h2>📝 Mis notas</h2>
+        <button class="icon-btn accent" id="btn-new-note" title="Nueva nota (Ctrl+Alt+N)">＋</button>
+      </div>
+      <div class="search-wrap">
+        <input type="text" id="notes-search" placeholder="Buscar en notas…" autocomplete="off">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div id="notes-list" class="list"></div>
+    </div>
+    <!-- Conversaciones -->
+    <div class="panel-view" id="panel-chats">
+      <div class="panel-head">
+        <h2>💬 Conversaciones</h2>
+        <button class="icon-btn accent" id="btn-go-import" title="Importar conversaciones">＋</button>
+      </div>
+      <div class="search-wrap">
+        <input type="text" id="chats-search" placeholder="Buscar en conversaciones…" autocomplete="off">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div id="chats-list" class="list"></div>
+    </div>
+    <!-- Red 3D -->
+    <div class="panel-view" id="panel-graph">
+      <div class="panel-head"><h2>🧠 Red neuronal</h2></div>
+      <p class="panel-hint">Cada <b>nodo</b> es una nota, conversación o persona. Cada <b>línea</b> es una conexión, y las <b>chispas ⚡ que viajan</b> son la información moviéndose de punto a punto. Los colores fosforescentes rotan solos en bucle infinito. Arrastra para rotar, rueda para zoom y haz clic en un nodo.</p>
+      <div class="legend" id="graph-legend"></div>
+      <div class="panel-section">
+        <h3>Mostrar</h3>
+        <div id="graph-filters" class="chips"></div>
+      </div>
+      <div class="panel-section">
+        <label class="switch-row"><input type="checkbox" id="tgl-labels"><span>Etiquetas en nodos</span></label>
+        <label class="switch-row"><input type="checkbox" id="tgl-mentions" checked><span>Conexiones por mención</span></label>
+      </div>
+    </div>
+    <!-- Importar -->
+    <div class="panel-view" id="panel-import">
+      <div class="panel-head"><h2>📥 Importar</h2></div>
+      <p class="panel-hint">Trae tus conversaciones con IA y tus chats a la red. Se convierten en nodos conectados automáticamente.</p>
+      <div class="formats-info">
+        <div class="format-row"><span class="dot chatgpt"></span> ChatGPT · <code>conversations.json</code></div>
+        <div class="format-row"><span class="dot gemini"></span> Gemini · <code>Conversations.json</code></div>
+        <div class="format-row"><span class="dot whatsapp"></span> WhatsApp · <code>chat.txt</code></div>
+        <div class="format-row"><span class="dot facebook"></span> Messenger · <code>message_1.json</code></div>
+        <div class="format-row"><span class="dot generic"></span> Genérico · JSON o texto</div>
+      </div>
+      <p class="panel-hint small">💡 También puedes arrastrar archivos directamente a la zona central.</p>
+    </div>
+    <!-- Conexiones -->
+    <div class="panel-view" id="panel-sync">
+      <div class="panel-head"><h2>🔌 Conexiones</h2></div>
+      <p class="panel-hint">Conecta <b>una sola vez</b> una carpeta de tu equipo. Todo lo que tus apps guarden ahí (exports de ChatGPT, chats de WhatsApp, cualquier JSON/TXT) se importa <b>automáticamente cada 30 s</b>.</p>
+      <div class="panel-section" id="sync-mini-status"></div>
+    </div>
+  </aside>
+
+  <!-- ══════════ ÁREA PRINCIPAL ══════════ -->
+  <main id="main">
+    <header id="topbar">
+      <div id="breadcrumb" class="breadcrumb"></div>
+      <div class="topbar-search">
+        <input type="text" id="global-search" placeholder="Buscar en todo… (Ctrl+K)" autocomplete="off">
+        <span class="search-icon">🔍</span>
+        <div id="global-results" class="dropdown hidden"></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn ghost" id="btn-palette" title="Paleta de comandos (Ctrl+K)">⌘ Comandos</button>
+        <button class="btn primary" id="btn-quick-note" title="Nueva nota (Ctrl+Alt+N)">＋ Nota</button>
+      </div>
+    </header>
+
+    <!-- Vista: editor de notas -->
+    <section class="view active" id="view-notes">
+      <div id="editor-empty" class="empty-state">
+        <div class="empty-icon">📝</div>
+        <h2>Tu espacio de notas</h2>
+        <p>Crea notas y conéctalas escribiendo <code class="wiki-demo">[[Nombre de otra nota]]</code>. Las conexiones aparecerán en tu red 3D.</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="empty-new-note">＋ Crear mi primera nota</button>
+          <button class="btn ghost" id="empty-samples">✨ Cargar ejemplo demo</button>
+        </div>
+      </div>
+      <div id="editor" class="hidden">
+        <div class="editor-toolbar">
+          <input type="text" id="ed-title" class="ed-title" placeholder="Título de la nota…">
+          <div class="toolbar-right">
+            <div class="seg" id="ed-mode">
+              <button data-mode="split" class="active" title="Editor + vista previa">◫ Dividido</button>
+              <button data-mode="edit" title="Solo editor">✏️ Editar</button>
+              <button data-mode="read" title="Solo lectura">👁 Leer</button>
+            </div>
+            <button class="icon-btn" id="ed-graph" title="Ver esta nota en la red 3D">🧠</button>
+            <button class="icon-btn" id="ed-download" title="Descargar .md">⬇</button>
+            <button class="icon-btn danger" id="ed-delete" title="Eliminar nota">🗑</button>
+          </div>
+        </div>
+        <div class="editor-meta">
+          <input type="text" id="ed-tags" placeholder="#etiquetas separadas por coma">
+          <span class="meta-info" id="ed-info"></span>
+        </div>
+        <div class="editor-body" id="ed-body">
+          <div class="ed-col ed-write">
+            <textarea id="ed-content" placeholder="Escribe aquí… Usa [[ ]] para conectar notas, # para etiquetas."></textarea>
+            <div id="wiki-popup" class="wiki-popup hidden"></div>
+          </div>
+          <div class="ed-col ed-preview markdown-body" id="ed-preview"></div>
+        </div>
+        <div class="editor-side" id="ed-side">
+          <div class="side-block">
+            <h3>🔗 Conectadas con esta nota</h3>
+            <div id="ed-backlinks" class="backlinks"></div>
+          </div>
+          <div class="side-block">
+            <h3>🗂 Esquema</h3>
+            <div id="ed-outline" class="outline"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista: lector de conversaciones -->
+    <section class="view" id="view-chats">
+      <div id="chat-empty" class="empty-state">
+        <div class="empty-icon">💬</div>
+        <h2>Tus conversaciones, vivas</h2>
+        <p>Importa tus chats con <b>ChatGPT</b>, <b>Gemini</b>, <b>WhatsApp</b> o <b>Facebook</b> y se convertirán en nodos de tu red neuronal.</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="empty-import">📥 Importar conversaciones</button>
+          <button class="btn ghost" id="empty-samples2">✨ Cargar ejemplo demo</button>
+        </div>
+      </div>
+      <div id="chat-reader" class="hidden">
+        <div class="chat-head">
+          <div class="chat-head-info">
+            <span class="source-badge" id="cr-badge"></span>
+            <h2 id="cr-title"></h2>
+            <div class="chat-stats" id="cr-stats"></div>
+          </div>
+          <div class="chat-head-actions">
+            <div class="search-wrap small">
+              <input type="text" id="cr-search" placeholder="Buscar en la conversación…">
+              <span class="search-icon">🔍</span>
+            </div>
+            <button class="icon-btn" id="cr-graph" title="Ver en la red 3D">🧠</button>
+            <button class="icon-btn" id="cr-tonote" title="Convertir en nota editable">📝</button>
+            <button class="icon-btn danger" id="cr-delete" title="Eliminar">🗑</button>
+          </div>
+        </div>
+        <div id="cr-messages" class="chat-messages"></div>
+      </div>
+    </section>
+
+    <!-- Vista: red 3D -->
+    <section class="view" id="view-graph">
+      <div id="graph-container"></div>
+      <div id="graph-hud">
+        <div id="hud-panel">
+          <div class="hud-title">◢ SINAPSIS·AI <span class="hud-live"><i></i>EN VIVO</span></div>
+          <div class="hud-stats">
+            <span>NODOS <b id="hud-nodes">0</b></span>
+            <span>ENLACES <b id="hud-edges">0</b></span>
+            <span>SEÑALES/MIN <b id="hud-rate">0</b></span>
+          </div>
+          <div class="hud-meter" title="Actividad de la red"><div id="hud-meter-bar"></div></div>
+        </div>
+        <div id="hud-feed"></div>
+        <div id="graph-focus-bar" class="hidden">
+          <span id="graph-focus-label"></span>
+          <button class="btn ghost small-btn" id="graph-unfocus">✕ Ver red completa</button>
+        </div>
+        <div id="graph-tooltip" class="hidden"></div>
+        <div class="graph-hint">🖱 Arrastra: rotar · Rueda: zoom · Clic en nodo: abrir o enfocar · ⚡ chispas = información viajando · Esc: salir del enfoque</div>
+      </div>
+      <div id="graph-empty" class="empty-state hidden">
+        <div class="empty-icon">🧠</div>
+        <h2>Tu red neuronal está vacía</h2>
+        <p>Crea notas o importa conversaciones para verlas conectadas aquí en 3D.</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="graph-empty-new">＋ Crear nota</button>
+          <button class="btn ghost" id="graph-empty-import">📥 Importar conversaciones</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista: importar -->
+    <section class="view" id="view-import">
+      <div class="import-wrap" id="import-drop">
+        <div class="import-header">
+          <h1>📥 Importa tus conversaciones</h1>
+          <p>Elige una fuente. Detectamos el formato automáticamente y cada conversación se convierte en un nodo conectado de tu red neuronal.</p>
+        </div>
+        <div class="import-grid">
+          <div class="import-card" data-src="chatgpt">
+            <div class="ic-icon chatgpt">⚡</div>
+            <h3>ChatGPT</h3>
+            <p>Exporta tus datos en <b>Settings → Data Controls → Export</b> y sube el archivo <code>conversations.json</code>.</p>
+            <button class="btn primary small-btn">Elegir archivo</button>
+          </div>
+          <div class="import-card" data-src="gemini">
+            <div class="ic-icon gemini">✦</div>
+            <h3>Gemini</h3>
+            <p>Descarga <b>Gemini Apps Activity</b> desde Google Takeout y sube <code>Conversations.json</code>.</p>
+            <button class="btn primary small-btn">Elegir archivo</button>
+          </div>
+          <div class="import-card" data-src="whatsapp">
+            <div class="ic-icon whatsapp">💬</div>
+            <h3>WhatsApp</h3>
+            <p>En el chat: <b>⋮ → Más → Exportar chat</b> (sin archivos) y sube el <code>.txt</code>.</p>
+            <button class="btn primary small-btn">Elegir archivo</button>
+          </div>
+          <div class="import-card" data-src="facebook">
+            <div class="ic-icon facebook">ⓕ</div>
+            <h3>Messenger</h3>
+            <p>Descarga tu información de Facebook (formato JSON) y sube el <code>message_1.json</code> del chat.</p>
+            <button class="btn primary small-btn">Elegir archivo</button>
+          </div>
+          <div class="import-card" data-src="generic">
+            <div class="ic-icon generic">🤖</div>
+            <h3>Otra IA / Genérico</h3>
+            <p>Claude, Copilot, texto plano… Pega el chat o sube un JSON con <code>role</code>/<code>content</code>.</p>
+            <button class="btn primary small-btn">Pegar texto</button>
+          </div>
+          <div class="import-card demo" data-src="samples">
+            <div class="ic-icon demo">✨</div>
+            <h3>Ejemplo demo</h3>
+            <p>¿Solo explorando? Carga notas y conversaciones de muestra para ver la red en acción.</p>
+            <button class="btn ghost small-btn">Cargar demo</button>
+          </div>
+        </div>
+        <div class="drop-overlay" id="drop-overlay"><span>📥 Suelta tus archivos aquí</span></div>
+      </div>
+    </section>
+
+    <!-- Vista: conexiones automáticas -->
+    <section class="view" id="view-sync">
+      <div class="sync-wrap">
+        <div class="import-header">
+          <h1>🔌 Conecta cualquier app, <span class="grad-text">una sola vez</span></h1>
+          <p>Conecta una carpeta de tu equipo como "buzón" de Sinapsis. En cuanto cualquier aplicación guarde ahí sus conversaciones, se importan <b>solas</b> a tu red neuronal — sin volver a subir nada, aunque cierres el navegador.</p>
+        </div>
+        <div class="sync-grid">
+          <div class="sync-card main" id="sync-main-card">
+            <div class="sync-head-row">
+              <span class="sync-status-dot" id="sync-dot"></span>
+              <h3 id="sync-title">Sin conectar</h3>
+            </div>
+            <p id="sync-desc">Elige una carpeta (por ejemplo "Descargas" o una carpeta llamada "Chats"). Sinapsis la vigilará y auto-importará archivos <code>.json</code> y <code>.txt</code> con conversaciones.</p>
+            <div class="sync-stats" id="sync-stats"></div>
+            <div class="sync-actions">
+              <button class="btn primary" id="btn-connect">📁 Conectar carpeta</button>
+              <button class="btn ghost hidden" id="btn-reconnect">🔁 Reconectar</button>
+              <button class="btn ghost" id="btn-rescan">⟳ Escanear ahora</button>
+              <button class="btn danger hidden" id="btn-disconnect">Desconectar</button>
+            </div>
+            <div class="sync-note hidden" id="sync-unsupported">⚠️ Tu navegador no permite conectar carpetas (se necesita Chrome, Edge u Opera). Puedes seguir importando manualmente en 📥 Importar.</div>
+          </div>
+          <div class="sync-card">
+            <h3>🧩 ¿Cómo conecto cada app?</h3>
+            <ul class="sync-how">
+              <li><b>⚡ ChatGPT</b> — Settings → Data Controls → Export data; guarda el <code>conversations.json</code> en tu carpeta conectada.</li>
+              <li><b>✦ Gemini</b> — Google Takeout → "Gemini Apps Activity"; guarda <code>Conversations.json</code> ahí.</li>
+              <li><b>💬 WhatsApp</b> — En el chat: ⋮ → Más → Exportar chat; guarda el <code>.txt</code> ahí.</li>
+              <li><b>ⓕ Messenger</b> — Descarga tu información (JSON) y guarda el <code>message_1.json</code>.</li>
+              <li><b>🤖 Cualquier otra app/IA</b> — Si puede guardar un JSON o TXT con el chat, <b>ya quedó conectada</b>: en cuanto el archivo cae en la carpeta, entra a tu red solo.</li>
+            </ul>
+          </div>
+          <div class="sync-card">
+            <h3>📡 Actividad automática</h3>
+            <div id="sync-log" class="sync-log"><div class="sync-log-empty">Sin actividad todavía…</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Barra de estado -->
+    <footer id="statusbar">
+      <span id="sb-counts"></span>
+      <span id="sb-storage"></span>
+      <span class="sb-hint">Ctrl+K comandos · Ctrl+P abrir · Alt+1..4 secciones</span>
+    </footer>
+  </main>
+</div>
+
+<!-- ══════════ MODALES ══════════ -->
+<div id="onboarding" class="modal-overlay hidden">
+  <div class="modal onboarding-modal">
+    <div class="ob-orb"></div>
+    <h1>Bienvenido a <span class="grad-text">Sinapsis</span></h1>
+    <p class="ob-sub">Tu segundo cerebro en 3D: notas + conversaciones con IA + chats, todo conectado como una red neuronal.</p>
+    <div class="ob-steps">
+      <div class="ob-step"><div class="ob-emoji">📝</div><h4>1 · Escribe notas</h4><p>Como en Obsidian, con Markdown y vista previa en vivo.</p></div>
+      <div class="ob-step"><div class="ob-emoji">🔗</div><h4>2 · Conéctalas</h4><p>Escribe <code>[[otra nota]]</code> y se enlazarán solas.</p></div>
+      <div class="ob-step"><div class="ob-emoji">💬</div><h4>3 · Importa chats</h4><p>ChatGPT, Gemini, WhatsApp, Messenger… un clic.</p></div>
+      <div class="ob-step"><div class="ob-emoji">🧠</div><h4>4 · Explora en 3D</h4><p>Tu conocimiento entero como red neuronal interactiva.</p></div>
+    </div>
+    <div class="ob-actions">
+      <button class="btn primary big" id="ob-samples">✨ Empezar con ejemplos</button>
+      <button class="btn ghost big" id="ob-blank">Empezar en blanco</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-modal" class="modal-overlay hidden">
+  <div class="modal help-modal">
+    <button class="modal-close" data-close>✕</button>
+    <h2>❓ Ayuda rápida</h2>
+    <div class="help-cols">
+      <div>
+        <h3>🧭 Cómo navegar</h3>
+        <ul class="help-list">
+          <li><b>📝 Notas</b> — crea y edita notas en Markdown. Escribe <code>[[título]]</code> para conectar dos notas.</li>
+          <li><b>💬 Chats</b> — lee tus conversaciones importadas como burbujas de chat.</li>
+          <li><b>🧠 Red 3D</b> — el mapa neuronal de todo. Rota con el ratón, zoom con la rueda. Las chispas ⚡ que viajan por las líneas son información moviéndose entre nodos: al hacer clic en uno, la señal estalla hacia sus conexiones.</li>
+          <li><b>📥 Importar</b> — sube exports de ChatGPT, Gemini, WhatsApp o Messenger.</li>
+          <li><b>🔌 Conexiones</b> — conecta una carpeta <b>una sola vez</b>: todo chat que tus apps guarden ahí se importa automáticamente cada 30 segundos.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>⌨️ Atajos</h3>
+        <ul class="help-list keys">
+          <li><kbd>Ctrl</kbd>+<kbd>K</kbd> — Paleta de comandos</li>
+          <li><kbd>Ctrl</kbd>+<kbd>P</kbd> — Abrir nota rápidamente</li>
+          <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd> — Nueva nota</li>
+          <li><kbd>Alt</kbd>+<kbd>1..4</kbd> — Cambiar de sección</li>
+          <li><kbd>Esc</kbd> — Cerrar ventanas / salir del enfoque</li>
+        </ul>
+        <h3>🎨 Colores de la red</h3>
+        <ul class="help-list" id="help-legend"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal settings-modal">
+    <button class="modal-close" data-close>✕</button>
+    <h2>⚙️ Configuración</h2>
+    <div class="settings-grid">
+      <div class="setting-card">
+        <h3>💾 Tus datos</h3>
+        <p>Todo se guarda localmente en tu navegador (localStorage). Nada sale de tu equipo.</p>
+        <div class="setting-actions">
+          <button class="btn ghost" id="set-export">⬇ Exportar copia (.json)</button>
+          <button class="btn ghost" id="set-import">⬆ Importar copia</button>
+        </div>
+      </div>
+      <div class="setting-card">
+        <h3>✨ Contenido demo</h3>
+        <p>Añade notas y conversaciones de ejemplo para explorar la app.</p>
+        <div class="setting-actions"><button class="btn ghost" id="set-samples">Cargar ejemplos</button></div>
+      </div>
+      <div class="setting-card danger">
+        <h3>🗑 Zona de peligro</h3>
+        <p>Elimina todas las notas y conversaciones de este navegador.</p>
+        <div class="setting-actions"><button class="btn danger" id="set-wipe">Borrar todo</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="import-preview" class="modal-overlay hidden">
+  <div class="modal import-modal">
+    <button class="modal-close" data-close>✕</button>
+    <h2 id="ip-title">Importar conversaciones</h2>
+    <p id="ip-sub"></p>
+    <div class="ip-toolbar">
+      <label class="switch-row"><input type="checkbox" id="ip-all" checked><span>Seleccionar todas</span></label>
+      <span id="ip-count"></span>
+    </div>
+    <div id="ip-list" class="ip-list"></div>
+    <div class="ip-actions">
+      <button class="btn ghost" data-close>Cancelar</button>
+      <button class="btn primary" id="ip-confirm">📥 Importar seleccionadas</button>
+    </div>
+  </div>
+</div>
+
+<div id="paste-modal" class="modal-overlay hidden">
+  <div class="modal paste-modal">
+    <button class="modal-close" data-close>✕</button>
+    <h2>📋 Pegar conversación</h2>
+    <input type="text" id="paste-title" placeholder="Título (ej: Chat con Claude sobre recetas)">
+    <textarea id="paste-text" placeholder="Pega aquí el chat…&#10;Formato sugerido:&#10;Usuario: hola&#10;Asistente: ¡Hola! ¿En qué te ayudo?"></textarea>
+    <div class="ip-actions">
+      <button class="btn ghost" data-close>Cancelar</button>
+      <button class="btn primary" id="paste-confirm">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Paleta de comandos -->
+<div id="palette" class="modal-overlay hidden">
+  <div class="palette-box">
+    <input type="text" id="palette-input" placeholder="Busca notas, conversaciones o comandos…">
+    <div id="palette-results"></div>
+    <div class="palette-foot">↑↓ navegar · Enter abrir · Esc cerrar</div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<input type="file" id="file-input" class="hidden-file" multiple>
+<input type="file" id="backup-input" class="hidden-file" accept=".json">
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
